@@ -1,0 +1,117 @@
+# PowerSync Sync Config — Speeed
+# Edition 3 (Sync Streams)
+
+config:
+  edition: 3
+
+streams:
+
+  # ── Priority 1: Own profile ──
+
+  my_profile:
+    priority: 1
+    auto_subscribe: true
+    query: |
+      SELECT * FROM profiles
+      WHERE id = auth.user_id()
+
+  # ── Priority 2: Core personal data ──
+
+  my_runs:
+    priority: 2
+    auto_subscribe: true
+    query: |
+      SELECT * FROM runs
+      WHERE user_id = auth.user_id()
+
+  my_run_locations:
+    priority: 2
+    auto_subscribe: true
+    query: |
+      SELECT rl.*
+      FROM run_locations rl
+      JOIN runs r ON r.id = rl.run_id
+      WHERE r.user_id = auth.user_id()
+
+  my_follows:
+    priority: 2
+    auto_subscribe: true
+    query: |
+      SELECT * FROM follows
+      WHERE follower_id = auth.user_id()
+         OR following_id = auth.user_id()
+
+  my_notifications:
+    priority: 2
+    auto_subscribe: true
+    query: |
+      SELECT * FROM notifications
+      WHERE user_id = auth.user_id()
+
+  my_kudos:
+    priority: 2
+    auto_subscribe: true
+    queries:
+      - SELECT * FROM kudos WHERE user_id = auth.user_id()
+      - |
+        SELECT k.*
+        FROM kudos k
+        JOIN runs r ON r.id = k.run_id
+        WHERE r.user_id = auth.user_id()
+
+  my_segment_efforts:
+    priority: 2
+    auto_subscribe: true
+    query: |
+      SELECT * FROM segment_efforts
+      WHERE user_id = auth.user_id()
+
+  # ── Priority 3: Social / network content ──
+
+  network_profiles:
+    priority: 3
+    auto_subscribe: true
+    query: |
+      SELECT p.*
+      FROM profiles p
+      JOIN follows f ON f.following_id = p.id
+      WHERE f.follower_id = auth.user_id()
+
+  network_runs:
+    priority: 3
+    auto_subscribe: true
+    query: |
+      SELECT r.*
+      FROM runs r
+      JOIN follows f ON f.following_id = r.user_id
+      WHERE f.follower_id = auth.user_id()
+        AND r.status = 'completed'
+        AND r.is_public = 1
+
+  network_kudos:
+    priority: 3
+    auto_subscribe: true
+    query: |
+      SELECT k.*
+      FROM kudos k
+      JOIN runs r ON r.id = k.run_id
+      JOIN follows f ON f.following_id = r.user_id
+      WHERE f.follower_id = auth.user_id()
+        AND r.status = 'completed'
+        AND r.is_public = 1
+
+  network_segment_efforts:
+    priority: 3
+    auto_subscribe: true
+    query: |
+      SELECT se.*
+      FROM segment_efforts se
+      JOIN follows f ON f.following_id = se.user_id
+      WHERE f.follower_id = auth.user_id()
+
+  segments:
+    priority: 3
+    auto_subscribe: true
+    query: |
+      SELECT * FROM segments
+
