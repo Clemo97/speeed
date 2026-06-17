@@ -11,8 +11,8 @@ import Supabase
         var userId: String
         var path = StackState<DashboardPath.State>()
         var recentRuns: [Run] = []
-        var weeklyDistanceMeters: Double = 0
-        var weeklyRunCount: Int = 0
+        var yearlyDistanceMeters: Double = 0
+        var yearlyRunCount: Int = 0
         var isLoading = false
     }
 
@@ -54,11 +54,12 @@ import Supabase
                 state.isLoading = false
                 // Show 5 most recent runs
                 state.recentRuns = Array(runs.prefix(5))
-                // Compute weekly stats from all fetched runs
-                let cutoff = now.addingTimeInterval(-7 * 24 * 3600)
-                let weeklyRuns = runs.filter { $0.startTime >= cutoff }
-                state.weeklyRunCount = weeklyRuns.count
-                state.weeklyDistanceMeters = weeklyRuns.reduce(0) { $0 + $1.distanceMeters }
+                // Compute yearly stats from all fetched runs
+                let year = Calendar.current.component(.year, from: now)
+                let startOfYear = Calendar.current.date(from: DateComponents(year: year, month: 1, day: 1)) ?? now
+                let yearlyRuns = runs.filter { $0.startTime >= startOfYear }
+                state.yearlyRunCount = yearlyRuns.count
+                state.yearlyDistanceMeters = yearlyRuns.reduce(0) { $0 + $1.distanceMeters }
                 return .none
 
             case .runRowTapped(let run):

@@ -8,7 +8,7 @@ struct DashboardView: View {
         NavigationStack(path: $store.scope(state: \.path, action: \.path)) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    weeklyStatsSection
+                    yearlyStatsSection
                     recentRunsSection
                 }
                 .padding()
@@ -23,23 +23,23 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: Weekly Stats
+    // MARK: Yearly Stats
 
-    private var weeklyStatsSection: some View {
+    private var yearlyStatsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("This Week")
+            Text("This Year")
                 .font(.headline)
 
             HStack(spacing: 12) {
                 statCard(
-                    value: String(format: "%.1f km", store.weeklyDistanceMeters / 1000),
-                    label: "Distance",
+                    value: String(format: "%.1f km", store.yearlyDistanceMeters / 1000),
+                    label: "Total Distance",
                     icon: "map.fill",
                     color: .orange
                 )
                 statCard(
-                    value: "\(store.weeklyRunCount)",
-                    label: "Runs",
+                    value: "\(store.yearlyRunCount)",
+                    label: "Total Runs",
                     icon: "figure.run",
                     color: .blue
                 )
