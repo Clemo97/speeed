@@ -4,14 +4,29 @@ A GPS running tracker for iOS and iPadOS, built with SwiftUI and the Composable 
 
 ## Screenshots
 
-<div align="center">
-  <img src="Screenshots/IMG_0334.PNG" width="200" alt="Login">
-  <img src="Screenshots/IMG_0332.PNG" width="200" alt="Dashboard">
-  <img src="Screenshots/IMG_0333.PNG" width="200" alt="Run History">
-  <img src="Screenshots/IMG_0335.PNG" width="200" alt="Run Detail">
-  <img src="Screenshots/IMG_0336.PNG" width="200" alt="Profile">
-  <img src="Screenshots/IMG_0337.PNG" width="200" alt="Feed">
-</div>
+<img src="Screenshots/IMG_0334.PNG" width="280" alt="Login">
+
+Sign in with email/password or Google OAuth via Supabase Auth.
+
+<img src="Screenshots/IMG_0332.PNG" width="280" alt="Dashboard">
+
+Dashboard with yearly total distance, run count, and recent runs.
+
+<img src="Screenshots/IMG_0333.PNG" width="280" alt="Run History">
+
+Run history list with distance, duration, and pace for each completed run.
+
+<img src="Screenshots/IMG_0335.PNG" width="280" alt="Run Detail">
+
+Run detail with full stats and a MapKit polyline replay of the route.
+
+<img src="Screenshots/IMG_0336.PNG" width="280" alt="Profile">
+
+Profile screen showing user stats and account management.
+
+<img src="Screenshots/IMG_0337.PNG" width="280" alt="Feed">
+
+Social feed of runs from followed users.
 
 ## Stack
 
