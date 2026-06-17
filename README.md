@@ -1,51 +1,60 @@
 # Speeed
 
-A GPS running tracker for iOS and iPadOS, built with offline-first sync. Track distance, pace, and route. Follow friends, give kudos, and compete on segments.
+A GPS running tracker for iOS and iPadOS, built with SwiftUI and the Composable Architecture. Track distance, pace, and route. Follow friends, give kudos, and compete on segments.
+
+## Screenshots
+
+<div align="center">
+  <img src="Screenshots/IMG_0334.PNG" width="200" alt="Login">
+  <img src="Screenshots/IMG_0332.PNG" width="200" alt="Dashboard">
+  <img src="Screenshots/IMG_0333.PNG" width="200" alt="Run History">
+  <img src="Screenshots/IMG_0335.PNG" width="200" alt="Run Detail">
+  <img src="Screenshots/IMG_0336.PNG" width="200" alt="Profile">
+  <img src="Screenshots/IMG_0337.PNG" width="200" alt="Feed">
+</div>
 
 ## Stack
 
 | Layer | Technology |
 |---|---|
 | UI | SwiftUI (iOS 17+) |
-| State management | [Composable Architecture (TCA)](https://github.com/pointfreeco/swift-composable-architecture) 1.15+ |
-| Backend | [Supabase](https://supabase.com) (Postgres + Auth + Storage) |
-| Offline sync | [PowerSync](https://www.powersync.com) Cloud (Sync Streams, Edition 3) |
-| Location | `CLLocationUpdate.liveUpdates(.fitness)` (iOS 17 native AsyncSequence) |
-| Maps | SwiftUI `Map` + `MapPolyline` (no UIViewRepresentable) |
+| State management | [Composable Architecture (TCA)](https://github.com/pointfreeco/swift-composable-architecture) 1.26 |
+| Backend | [Supabase](https://supabase.com) (Postgres + Auth) |
+| Location | Core Location |
+| Maps | SwiftUI `Map` + `MapPolyline` |
 | Project generation | [XcodeGen](https://github.com/yonaskolb/XcodeGen) |
 
 ## Features
 
-- GPS run tracking with live map, pace, and distance
-- Run history with per-km splits and route replay
-- Social feed from followed users
-- Kudos on runs
-- Segments and leaderboards
-- Push notifications (follow + kudos events)
-- Full offline support — all reads/writes work without network, sync resumes automatically
+- Email/password and Google OAuth sign-in via Supabase Auth
+- Dashboard with yearly distance and run count stats
+- Run history with route replay on MapKit
+- Live GPS run recording with pace and distance (in progress)
+- Social feed from followed users (in progress)
+- Kudos on runs (in progress)
+- Segments and leaderboards (planned)
 
 ## Project Structure
 
 ```
 Speeed/
 ├── App/                    # Root reducer + entry point
-├── Configuration/          # Supabase + PowerSync URLs (gitignored)
-├── Database/               # PowerSync schema + Supabase connector
+├── Configuration/          # Supabase URL + anon key (gitignored)
 ├── Dependencies/           # TCA dependency registrations
 ├── Features/
-│   ├── Auth/               # Login (Apple, Google, email) + Register
+│   ├── Auth/               # Login (Google, email) + Register
 │   ├── AppTabs/            # Tab container
-│   ├── Dashboard/          # Weekly stats + recent runs
+│   ├── Dashboard/          # Yearly stats + recent runs
 │   ├── Record/             # Pre-run screen
 │   ├── ActiveRun/          # Live GPS tracking + save flow
-│   ├── RunHistory/         # Run list + detail with splits
+│   ├── RunHistory/         # Run list + detail with map
 │   ├── Feed/               # Social feed
 │   └── Profile/            # Own profile, stats, sign out
 ├── Models/                 # Run, RunLocation, Profile, Follow, Kudos
+scripts/
+└── seed_runs.py            # GPX → Supabase data seeder
 supabase/
-└── migrations/             # Schema, RLS policies, triggers + publication
-powersync/
-└── sync-config.yaml        # Sync Streams config (Edition 3, 12 streams)
+└── migrations/             # Schema, RLS policies, triggers
 project.yml                 # XcodeGen config
 ```
 
@@ -53,10 +62,9 @@ project.yml                 # XcodeGen config
 
 ### Prerequisites
 
-- Xcode 15+
+- Xcode 16+
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen): `brew install xcodegen`
 - A [Supabase](https://supabase.com) project
-- A [PowerSync Cloud](https://www.powersync.com) instance connected to your Supabase Postgres
 
 ### 1. Clone and configure
 
@@ -74,13 +82,10 @@ Edit `Speeed/Configuration/Configuration.swift`:
 enum Configuration {
     static let supabaseURL = "https://YOUR_PROJECT_REF.supabase.co"
     static let supabaseAnonKey = "YOUR_SUPABASE_ANON_KEY"
-    static let powerSyncURL = "https://YOUR_INSTANCE_ID.powersync.journeyapps.com"
 }
 ```
 
-Values are available from:
-- **Supabase**: Project Settings → API
-- **PowerSync**: Dashboard → your instance → Connection Details
+Values are available from **Supabase Dashboard → Project Settings → API**.
 
 ### 2. Apply database migrations
 
@@ -89,26 +94,15 @@ supabase link --project-ref YOUR_PROJECT_REF
 supabase db push
 ```
 
-This applies:
-- `20260424000000` — 8 tables (profiles, runs, run_locations, follows, kudos, segments, segment_efforts, notifications)
-- `20260424000001` — RLS policies on all tables
-- `20260424000002` — triggers (new user profile, notifications) + `powersync` publication
+This applies 8 tables (profiles, runs, run_locations, follows, kudos, segments, segment_efforts, notifications), RLS policies, and triggers.
 
-### 3. Configure PowerSync
+### 3. Enable Auth providers
 
-In the [PowerSync Dashboard](https://dashboard.powersync.com):
-
-1. Create a new instance and connect your Supabase Postgres database
-2. Under **Client Auth**, enable **Use Supabase Auth** (leave JWT Secret empty — RS256 is auto-detected)
-3. Under **Sync Rules**, paste the contents of `powersync/sync-config.yaml` and deploy
-
-### 4. Enable Auth providers
-
-In the Supabase Dashboard → Authentication → Providers:
-- Enable **Apple** (requires an Apple Developer account with Sign In with Apple capability)
+In Supabase Dashboard → Authentication → Providers:
 - Enable **Google** (requires a Google Cloud OAuth client ID)
+- Make sure **Email/Password** is enabled
 
-### 5. Generate and open the Xcode project
+### 4. Generate and open the project
 
 ```bash
 xcodegen generate
@@ -117,35 +111,27 @@ open Speeed.xcodeproj
 
 Set your Development Team in Xcode (Signing & Capabilities), then build and run on a device (location tracking requires real hardware).
 
+### 5. (Optional) Seed demo data
+
+```bash
+python3 scripts/seed_runs.py
+```
+
+Parses GPX files from `GPX/` and inserts runs with full GPS track data into Supabase.
+
 ## Architecture
 
-The app uses TCA with `@Reducer`, `@ObservableState`, and `@Dependency` throughout. Navigation uses `StackState`/`StackActionOf` for push flows and `@Presents` for sheets.
-
-PowerSync is the local SQLite layer — all reads go through `db.watch(sql:parameters:mapper:)` which returns an `AsyncThrowingStream` that updates live as data changes. Writes go through `db.writeTransaction` and are queued for upload to Supabase via the `SupabasePowerSyncConnector`.
+The app uses TCA with `@Reducer`, `@ObservableState`, and `@Dependency` throughout. Navigation uses `StackState`/`StackActionOf` for push flows. Data flows directly to Supabase via the REST API — feature reducers call `supabaseClient.from(_:).select().execute()` on appear, and the Supabase Swift SDK handles auth tokens automatically.
 
 ```
 View → Store.send(action)
           ↓
        Reducer
           ↓ effect
-    db.watch() / db.writeTransaction()
+    supabaseClient.from("runs").select().execute()
           ↓
-     SQLite (local)
-          ↓ background sync
-     PowerSync Cloud
-          ↓ replication
-       Supabase Postgres
+       Supabase Postgres (via REST API)
 ```
-
-## Sync Streams
-
-12 streams across 3 priority tiers ensure the app renders immediately on launch:
-
-| Priority | Streams |
-|---|---|
-| 1 | `my_profile` |
-| 2 | `my_runs`, `my_run_locations`, `my_follows`, `my_notifications`, `my_kudos`, `my_segment_efforts` |
-| 3 | `network_profiles`, `network_runs`, `network_kudos`, `network_segment_efforts`, `segments` |
 
 ## License
 
