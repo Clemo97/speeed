@@ -14,9 +14,6 @@ packages:
   Supabase:
     url: https://github.com/supabase-community/supabase-swift
     from: 2.0.0
-  PowerSync:
-    url: https://github.com/powersync-ja/powersync-swift
-    from: 1.0.0
 
 targets:
   Speeed:
@@ -39,22 +36,19 @@ targets:
             CFBundleURLName: "com.speeed"
     entitlements:
       path: Speeed/Speeed.entitlements
-      properties:
-        com.apple.developer.applesignin:
-          - Default
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.speeed.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.clemo.speeed
         SWIFT_VERSION: "5.10"
         DEVELOPMENT_TEAM: ""
         CODE_SIGN_STYLE: Automatic
+        CODE_SIGNING_REQUIRED: "YES"
+        CODE_SIGNING_ALLOWED: "YES"
     dependencies:
       - package: ComposableArchitecture
         product: ComposableArchitecture
       - package: Supabase
         product: Supabase
-      - package: PowerSync
-        product: PowerSync
 
 schemes:
   Speeed:
@@ -68,9 +62,6 @@ schemes:
           value: ""
           isEnabled: false
         SUPABASE_ANON_KEY:
-          value: ""
-          isEnabled: false
-        POWERSYNC_URL:
           value: ""
           isEnabled: false
     test:

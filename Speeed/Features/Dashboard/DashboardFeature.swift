@@ -1,5 +1,6 @@
 import ComposableArchitecture
 import Foundation
+import Supabase
 
 @Reducer(state: .equatable) enum DashboardPath {
     case runDetail(RunDetailFeature)
@@ -18,11 +19,11 @@ import Foundation
     enum Action {
         case path(StackActionOf<DashboardPath>)
         case onAppear
-        case recentRunsUpdated([Run])
+        case runsLoaded([Run])
         case runRowTapped(Run)
     }
 
-    @Dependency(\.powerSyncDatabase) var database
+    @Dependency(\.supabaseClient) var supabaseClient
     @Dependency(\.date.now) var now
 
     var body: some Reducer<State, Action> {
@@ -33,25 +34,27 @@ import Foundation
                 state.isLoading = true
                 let userId = state.userId
                 return .run { send in
-                    for try await rows in try database.watch(
-                        sql: """
-                        SELECT * FROM runs
-                        WHERE user_id = ? AND status = 'completed'
-                        ORDER BY start_time DESC
-                        LIMIT 5
-                        """,
-                        parameters: [userId],
-                        mapper: { Run(cursor: $0) }
-                    ) {
-                        let runs = rows.compactMap { $0 }
-                        await send(.recentRunsUpdated(runs))
+                    do {
+                        let response = try await supabaseClient
+                            .from("runs")
+                            .select()
+                            .eq("user_id", value: userId)
+                            .eq("status", value: "completed")
+                            .order("start_time", ascending: false)
+                            .limit(50)
+                            .execute()
+                        let runs = try JSONDecoder.supabase.decode([Run].self, from: response.data)
+                        await send(.runsLoaded(runs))
+                    } catch {
+                        await send(.runsLoaded([]))
                     }
                 }
 
-            case .recentRunsUpdated(let runs):
-                state.recentRuns = runs
+            case .runsLoaded(let runs):
                 state.isLoading = false
-                // Compute weekly stats (last 7 days)
+                // Show 5 most recent runs
+                state.recentRuns = Array(runs.prefix(5))
+                // Compute weekly stats from all fetched runs
                 let cutoff = now.addingTimeInterval(-7 * 24 * 3600)
                 let weeklyRuns = runs.filter { $0.startTime >= cutoff }
                 state.weeklyRunCount = weeklyRuns.count

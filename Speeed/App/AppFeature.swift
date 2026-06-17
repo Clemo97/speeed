@@ -18,13 +18,9 @@ import Supabase
         case onAppear
         case openURL(URL)
         case authStateChanged(AuthChangeEvent, Session?)
-        case powerSyncConnected
-        case powerSyncConnectionFailed(String)
     }
 
     @Dependency(\.supabaseClient) var supabaseClient
-    @Dependency(\.powerSyncDatabase) var database
-    @Dependency(\.connector) var connector
 
     var body: some Reducer<State, Action> {
         Scope(state: \.auth, action: \.auth) { AuthFeature() }
@@ -51,26 +47,16 @@ import Supabase
                     let userId = session.user.id.uuidString
                     state.currentUserId = userId
                     state.isAuthenticated = true
+                    state.isLoading = false
                     state.tabs = AppTabsFeature.State(userId: userId)
-                    state.isLoading = true
-                    return .run { send in
-                        do {
-                            try await database.connect(connector: connector)
-                            try await database.waitForFirstSync()
-                            await send(.powerSyncConnected)
-                        } catch {
-                            await send(.powerSyncConnectionFailed(error.localizedDescription))
-                        }
-                    }
+                    return .none
 
                 case .signedOut, .userDeleted:
                     state.isAuthenticated = false
                     state.currentUserId = nil
                     state.isLoading = false
                     state.auth = AuthFeature.State()
-                    return .run { _ in
-                        try? await database.disconnectAndClear()
-                    }
+                    return .none
 
                 default:
                     state.isLoading = false
@@ -81,15 +67,6 @@ import Supabase
                 return .run { _ in
                     try? await supabaseClient.auth.session(from: url)
                 }
-
-            case .powerSyncConnected:
-                state.isLoading = false
-                return .none
-
-            case .powerSyncConnectionFailed:
-                // Still show app — offline reads from local SQLite work without connection
-                state.isLoading = false
-                return .none
 
             case .auth, .tabs:
                 return .none

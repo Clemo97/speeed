@@ -1,7 +1,9 @@
 # Xcode
-*.xcodeproj/
-*.xcworkspace/
-!*.xcworkspace/contents.xcworkspacedata
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+*.xcworkspace/xcuserdata/
+*.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
 
 # Build artifacts
 build/

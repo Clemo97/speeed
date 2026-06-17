@@ -1,4 +1,3 @@
-import AuthenticationServices
 import ComposableArchitecture
 import SwiftUI
 
@@ -55,31 +54,19 @@ struct LoginView: View {
                 }
                 .padding(.horizontal)
 
-                // MARK: Social Sign In
-                VStack(spacing: 12) {
-                    SignInWithAppleButton(.signIn) { request in
-                        store.send(.signInWithAppleTapped)
-                        request.requestedScopes = [.fullName, .email]
-                        request.nonce = sha256(store.currentNonce ?? "")
-                    } onCompletion: { result in
-                        store.send(.appleSignInCompleted(result))
+                // MARK: Google Sign In
+                Button {
+                    store.send(.signInWithGoogleTapped)
+                } label: {
+                    HStack {
+                        Image(systemName: "globe")
+                        Text("Sign in with Google")
                     }
-                    .signInWithAppleButtonStyle(.black)
-                    .frame(height: 50)
-
-                    Button {
-                        store.send(.signInWithGoogleTapped)
-                    } label: {
-                        HStack {
-                            Image(systemName: "globe")
-                            Text("Sign in with Google")
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.primary)
-                    .frame(height: 50)
+                    .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(.bordered)
+                .tint(.primary)
+                .frame(height: 50)
                 .padding(.horizontal)
 
                 if store.isLoading {

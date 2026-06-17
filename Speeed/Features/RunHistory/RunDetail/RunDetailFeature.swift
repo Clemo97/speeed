@@ -2,6 +2,7 @@ import ComposableArchitecture
 import CoreLocation
 import Foundation
 import MapKit
+import Supabase
 
 @Reducer struct RunDetailFeature {
     @ObservableState struct State: Equatable {
@@ -57,7 +58,7 @@ import MapKit
         case locationsLoaded([RunLocation])
     }
 
-    @Dependency(\.powerSyncDatabase) var database
+    @Dependency(\.supabaseClient) var supabaseClient
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
@@ -65,13 +66,19 @@ import MapKit
             case .onAppear:
                 let runId = state.run.id
                 return .run { send in
-                    for try await rows in try database.watch(
-                        sql: "SELECT * FROM run_locations WHERE run_id = ? ORDER BY sequence ASC",
-                        parameters: [runId],
-                        mapper: { RunLocation(cursor: $0) }
-                    ) {
-                        let locations = rows.compactMap { $0 }
+                    do {
+                        let response = try await supabaseClient
+                            .from("run_locations")
+                            .select()
+                            .eq("run_id", value: runId)
+                            .order("sequence", ascending: true)
+                            .execute()
+                        let locations = try JSONDecoder.supabase.decode(
+                            [RunLocation].self, from: response.data
+                        )
                         await send(.locationsLoaded(locations))
+                    } catch {
+                        await send(.locationsLoaded([]))
                     }
                 }
 

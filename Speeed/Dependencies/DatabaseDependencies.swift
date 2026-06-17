@@ -1,6 +1,5 @@
 import Dependencies
 import Foundation
-import PowerSync
 import Supabase
 
 // MARK: - Supabase Client Dependency
@@ -21,37 +20,26 @@ extension DependencyValues {
     }
 }
 
-// MARK: - PowerSync Database Dependency
+// MARK: - JSON Decoder for Supabase responses
 
-enum PowerSyncDatabaseKey: DependencyKey {
-    static var liveValue: any PowerSyncDatabaseProtocol {
-        PowerSyncDatabase(
-            schema: AppSchema,
-            dbFilename: "speeed.sqlite"
-        )
-    }
-}
-
-extension DependencyValues {
-    var powerSyncDatabase: any PowerSyncDatabaseProtocol {
-        get { self[PowerSyncDatabaseKey.self] }
-        set { self[PowerSyncDatabaseKey.self] = newValue }
-    }
-}
-
-// MARK: - Connector Dependency
-
-enum ConnectorKey: DependencyKey {
-    @MainActor
-    static var liveValue: SupabasePowerSyncConnector {
-        @Dependency(\.supabaseClient) var supabaseClient
-        return SupabasePowerSyncConnector(supabaseClient: supabaseClient)
-    }
-}
-
-extension DependencyValues {
-    var connector: SupabasePowerSyncConnector {
-        get { self[ConnectorKey.self] }
-        set { self[ConnectorKey.self] = newValue }
-    }
+extension JSONDecoder {
+    /// Decoder configured to handle Supabase's ISO 8601 timestamps,
+    /// including fractional seconds (e.g. 2026-06-16T15:34:50.123456+00:00).
+    static let supabase: JSONDecoder = {
+        let decoder = JSONDecoder()
+        let formatter = ISO8601DateFormatter()
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let string = try container.decode(String.self)
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = formatter.date(from: string) { return date }
+            formatter.formatOptions = [.withInternetDateTime]
+            if let date = formatter.date(from: string) { return date }
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Cannot decode date: \(string)"
+            )
+        }
+        return decoder
+    }()
 }

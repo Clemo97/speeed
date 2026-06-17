@@ -1,5 +1,6 @@
 import ComposableArchitecture
 import Foundation
+import Supabase
 
 @Reducer(state: .equatable) enum RunHistoryPath {
     case runDetail(RunDetailFeature)
@@ -16,11 +17,11 @@ import Foundation
     enum Action {
         case path(StackActionOf<RunHistoryPath>)
         case onAppear
-        case runsUpdated([Run])
+        case runsLoaded([Run])
         case runRowTapped(Run)
     }
 
-    @Dependency(\.powerSyncDatabase) var database
+    @Dependency(\.supabaseClient) var supabaseClient
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
@@ -30,17 +31,22 @@ import Foundation
                 state.isLoading = true
                 let userId = state.userId
                 return .run { send in
-                    for try await rows in try database.watch(
-                        sql: "SELECT * FROM runs WHERE user_id = ? AND status = 'completed' ORDER BY start_time DESC",
-                        parameters: [userId],
-                        mapper: { Run(cursor: $0) }
-                    ) {
-                        let runs = rows.compactMap { $0 }
-                        await send(.runsUpdated(runs))
+                    do {
+                        let response = try await supabaseClient
+                            .from("runs")
+                            .select()
+                            .eq("user_id", value: userId)
+                            .eq("status", value: "completed")
+                            .order("start_time", ascending: false)
+                            .execute()
+                        let runs = try JSONDecoder.supabase.decode([Run].self, from: response.data)
+                        await send(.runsLoaded(runs))
+                    } catch {
+                        await send(.runsLoaded([]))
                     }
                 }
 
-            case .runsUpdated(let runs):
+            case .runsLoaded(let runs):
                 state.runs = runs
                 state.isLoading = false
                 return .none

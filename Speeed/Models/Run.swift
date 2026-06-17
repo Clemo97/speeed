@@ -1,6 +1,5 @@
 import CoreLocation
 import Foundation
-import PowerSync
 
 // MARK: - Run
 
@@ -68,60 +67,11 @@ extension Run {
     }
 }
 
-// MARK: - Init from PowerSync row
+// MARK: - Insert Dictionary
 
 extension Run {
-    /// Convenience init from a raw PowerSync row dictionary.
-    init?(row: [String: Any]) {
-        guard
-            let id = row["id"] as? String,
-            let userId = row["user_id"] as? String,
-            let statusRaw = row["status"] as? String,
-            let status = RunStatus(rawValue: statusRaw),
-            let startTimeStr = row["start_time"] as? String,
-            let startTime = ISO8601DateFormatter().date(from: startTimeStr)
-        else { return nil }
-
-        self.id = id
-        self.userId = userId
-        self.title = row["title"] as? String
-        self.status = status
-        self.startTime = startTime
-        self.endTime = (row["end_time"] as? String).flatMap { ISO8601DateFormatter().date(from: $0) }
-        self.distanceMeters = row["distance_meters"] as? Double ?? 0
-        self.durationSeconds = row["duration_seconds"] as? Double ?? 0
-        self.averagePaceSecondsPerKm = row["average_pace_seconds_per_km"] as? Double ?? 0
-        self.isPublic = (row["is_public"] as? Int ?? 1) == 1
-        self.encodedPolyline = row["encoded_polyline"] as? String
-        self.createdAt = (row["created_at"] as? String).flatMap { ISO8601DateFormatter().date(from: $0) } ?? startTime
-    }
-
-    /// Init from a PowerSync SqlCursor (typed, avoids type-coercion ambiguity).
-    init?(cursor: SqlCursor) {
-        guard
-            let id = try? cursor.getString(name: "id"),
-            let userId = try? cursor.getString(name: "user_id"),
-            let statusRaw = try? cursor.getString(name: "status"),
-            let status = RunStatus(rawValue: statusRaw),
-            let startTimeStr = try? cursor.getString(name: "start_time"),
-            let startTime = ISO8601DateFormatter().date(from: startTimeStr)
-        else { return nil }
-
-        self.id = id
-        self.userId = userId
-        self.title = try? cursor.getString(name: "title")
-        self.status = status
-        self.startTime = startTime
-        self.endTime = (try? cursor.getString(name: "end_time")).flatMap { ISO8601DateFormatter().date(from: $0) }
-        self.distanceMeters = (try? cursor.getDouble(name: "distance_meters")) ?? 0
-        self.durationSeconds = (try? cursor.getDouble(name: "duration_seconds")) ?? 0
-        self.averagePaceSecondsPerKm = (try? cursor.getDouble(name: "average_pace_seconds_per_km")) ?? 0
-        self.isPublic = ((try? cursor.getInt(name: "is_public")) ?? 1) != 0
-        self.encodedPolyline = try? cursor.getString(name: "encoded_polyline")
-        self.createdAt = (try? cursor.getString(name: "created_at")).flatMap { ISO8601DateFormatter().date(from: $0) } ?? startTime
-    }
-
-    /// Convert to a dictionary for PowerSync writes.
+    /// Converts the Run to a dictionary suitable for Supabase inserts.
+    /// Dates are ISO 8601 strings; booleans are native Bool values.
     var asDictionary: [String: Any] {
         let formatter = ISO8601DateFormatter()
         var dict: [String: Any] = [
@@ -132,7 +82,7 @@ extension Run {
             "distance_meters": distanceMeters,
             "duration_seconds": durationSeconds,
             "average_pace_seconds_per_km": averagePaceSecondsPerKm,
-            "is_public": isPublic ? 1 : 0,
+            "is_public": isPublic,
             "created_at": formatter.string(from: createdAt)
         ]
         if let title { dict["title"] = title }

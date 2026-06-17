@@ -2,6 +2,7 @@ import ComposableArchitecture
 import CoreLocation
 import Dependencies
 import Foundation
+import Supabase
 
 @Reducer struct SaveRunFeature {
     @ObservableState struct State: Equatable {
@@ -27,7 +28,7 @@ import Foundation
         case errorDismissed
     }
 
-    @Dependency(\.powerSyncDatabase) var database
+    @Dependency(\.supabaseClient) var supabaseClient
     @Dependency(\.uuid) var uuid
     @Dependency(\.date.now) var now
 
@@ -103,43 +104,28 @@ import Foundation
     }
 
     private func saveRun(_ run: Run, locations: [RunLocation]) async throws {
-        try await database.writeTransaction { tx in
-            // Insert the run
-            try tx.execute(
-                sql: """
-                INSERT INTO runs (id, user_id, title, status, start_time, end_time,
-                    distance_meters, duration_seconds, average_pace_seconds_per_km,
-                    is_public, encoded_polyline, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                parameters: [
-                    run.id, run.userId, run.title as Any,
-                    run.status.rawValue,
-                    ISO8601DateFormatter().string(from: run.startTime),
-                    run.endTime.map { ISO8601DateFormatter().string(from: $0) } as Any,
-                    run.distanceMeters, run.durationSeconds, run.averagePaceSecondsPerKm,
-                    run.isPublic ? 1 : 0,
-                    run.encodedPolyline as Any,
-                    ISO8601DateFormatter().string(from: run.createdAt)
-                ]
-            )
+        // Insert the run row
+        let runJSON = try toAnyJSON(run.asDictionary)
+        try await supabaseClient
+            .from("runs")
+            .insert(runJSON)
+            .execute()
 
-            // Batch insert locations
-            for loc in locations {
-                try tx.execute(
-                    sql: """
-                    INSERT INTO run_locations (id, run_id, latitude, longitude, altitude, speed, sequence, recorded_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    parameters: [
-                        loc.id, loc.runId,
-                        loc.latitude, loc.longitude, loc.altitude, loc.speed,
-                        loc.sequence,
-                        ISO8601DateFormatter().string(from: loc.recordedAt)
-                    ]
-                )
-            }
+        // Batch insert all GPS location rows
+        if !locations.isEmpty {
+            let locationJSONs = try locations.map { try toAnyJSON($0.asDictionary) }
+            try await supabaseClient
+                .from("run_locations")
+                .insert(locationJSONs)
+                .execute()
         }
+    }
+
+    /// Converts a [String: Any] dictionary (with ISO 8601 string dates) to
+    /// [String: AnyJSON] for use with supabase-swift's insert method.
+    private func toAnyJSON(_ dict: [String: Any]) throws -> [String: AnyJSON] {
+        let data = try JSONSerialization.data(withJSONObject: dict)
+        return try JSONDecoder().decode([String: AnyJSON].self, from: data)
     }
 }
 
